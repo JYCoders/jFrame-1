@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+       
+<mapper namespace="com.jysoft.cbb.dao.MastValMapper">
+    <!--码表值实体类 -->
+	<resultMap type="mastValVo" id="mastValVo">
+		<id property="id"     column="ID"  />
+		<result property="typeId"     column="TYPE_ID"  />
+		<result property="masterCode"     column="MASTER_CODE"  />
+		<result property="valName"     column="VAL_NAME"  />
+		<result property="valCode"     column="VAL_CODE"  />
+		<result property="remark"     column="REMARK"  />
+		<result property="useFlag"     column="USE_FLAG"  />
+		<result property="ext1"     column="EXT1"  />
+		<result property="sortNum"  column="SORT_NUM"/>			   
+	</resultMap>
+	<!--码表实体类-->
+	<resultMap type="mastTypeVo" id="mastTypeVo">
+		<result property="id" column="ID" />
+		<result property="masterCode" column="MASTER_CODE" />
+		<result property="masterName" column="MASTER_NAME" />
+		<result property="masterVal"     column="MASTER_VAL"  />
+		<result property="remark" column="REMARK" />
+		<result property="pid" column="P_ID" />
+		<result property="ndType" column="NODE_TYPE" />
+		<result property="useFlag" column="USE_FLAG" />
+		<result property="useFlagName" column="USEFLAGNAME" />
+		<result property="sortNum" column="SORT_NUM" />
+	</resultMap>
+	<!-- 码表基础Vo，用于存放从数据库中取出的码表基础数据 -->
+	<resultMap type="mastBaseMessageVo" id="mastBaseMessageVo">
+		<id property="id" column="ID"/>
+		<id property="master_code" column="MASTER_CODE"/>
+		<id property="master_name" column="MASTER_NAME"/>
+		<id property="p_id" column="P_ID"/>
+		<id property="remark" column="REMARK"/>
+		<id property="use_flag" column="USE_FLAG"/>
+		<id property="sort_num" column="SORT_NUM"/>
+	</resultMap>
+	<!-- 下拉框实体类 -->
+	<resultMap type="comBoxSelectVo" id="comBoxSelectVo">
+	  <id property="id" column="ID" />
+	  <id property="text" column="TEXT" />
+	  <id property="type" column="TYPE" />	
+	</resultMap>
+	
+		<!-- 根据codeType查询出MastValVo 集合 -->
+		<select id="getMastValByMasterCode" resultMap="mastValVo" parameterType="String">
+			SELECT V.ID,
+			       V.TYPE_ID,
+			       V.MASTER_CODE,
+			       V.VAL_NAME,
+			       V.VAL_CODE,
+			       V.REMARK,
+			       V.USE_FLAG,
+			       T.MASTER_NAME,
+			       V.EXT1,
+			       V.SORT_NUM
+			  FROM T_MAST_VAL V, T_MAST_TYPE T
+			 WHERE V.USE_FLAG = '1'
+			   AND V.TYPE_ID = T.ID
+			   AND T.USE_FLAG = '1'
+			   AND UPPER(T.MASTER_CODE) = UPPER(#{mastercode})				 
+		</select>
+			
+		<!-- 获取所有的码表类型信息 -->
+		<select id="getMastInfoList" resultMap="mastTypeVo" parameterType="mastTypeVo">
+		SELECT * FROM (SELECT TMP_TB.*,
+							ROWNUM ROW_ID 
+						FROM (
+								SELECT V.id,
+								V.MASTER_VAL,
+								V.MASTER_CODE,
+								V.MASTER_NAME,
+								V.REMARK,
+								(SELECT F.MASTER_NAME FROM T_MAST_TYPE F WHERE F.MASTER_CODE = V.P_ID) AS P_ID,
+								V.NODE_TYPE,
+								V.USE_FLAG, 
+								SORT_NUM
+										FROM T_MAST_TYPE V	 WHERE 1=1 
+											<if test="masterCode!=null and masterCode != ''"> 
+											AND UPPER(MASTER_CODE) LIKE UPPER('%'||#{masterCode}||'%')
+											</if>
+											<if test="masterName!=null and masterName != '' "> 
+											AND MASTER_NAME LIKE '%'||#{masterName}||'%'
+											</if>
+											<if test="useFlag!=null and useFlag!= '' "> 
+											AND USE_FLAG=#{useFlag}
+											</if> 
+											<if test="pid!=null and pid!= '' ">
+											AND P_ID = #{pid}
+											</if> 
+											ORDER BY V.MASTER_CODE 
+					         )  TMP_TB WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} 
+					) 
+		          WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+		</select>
+			
+		<!-- 获取所有的码表类型信息总数 -->
+		<select id="getMastInfoListTotal" resultType="String" parameterType="mastTypeVo">
+			SELECT COUNT(*) FROM(
+				SELECT V.ID,
+			       V.MASTER_CODE,
+			       V.MASTER_NAME,
+			       V.REMARK,
+			       V.P_ID,
+			       V.NODE_TYPE,
+			       V.USE_FLAG
+			  FROM T_MAST_TYPE V
+			 WHERE 1 = 1
+					<if test="masterCode!=null and masterCode != ''"> 
+					AND MASTER_CODE LIKE '%${masterCode}%'
+					</if>
+					<if test="masterName!=null and masterName != '' "> 
+					AND MASTER_NAME LIKE '%${masterName}%'
+					</if>
+					<if test="useFlag!=null and useFlag!= '' "> 
+					AND USE_FLAG=#{useFlag}
+					</if>	
+					<if test="pid!=null and pid!= '' ">
+						AND P_ID = #{pid}
+					</if>	
+			ORDER BY V.ID DESC)
+		</select>
+			
+		<!-- 添加码表类型信息 -->
+		<insert id="addMastTypeInfo" parameterType="mastTypeVo">
+			INSERT INTO T_MAST_TYPE
+			  (ID,
+			   MASTER_CODE,
+			   MASTER_NAME,
+			   MASTER_VAL,
+			   REMARK,
+			   P_ID,
+			   NODE_TYPE,
+			   USE_FLAG,
+			   SORT_NUM)
+			VALUES
+			  (SYS_GUID(),
+			   #{masterCode},
+			   #{masterName},
+			   #{masterVal},
+			   #{remark},
+			   #{pid},
+			   #{ndType},
+			   #{useFlag},
+			   #{sortNum})
+		</insert>
+			
+		<!-- 根据Id获取码表类型的信息 -->
+		<select id="getMastInfoById" resultMap="mastTypeVo" parameterType="mastTypeVo">
+			SELECT V.ID,
+		       V.MASTER_CODE,
+		       V.MASTER_NAME,
+		       V.MASTER_VAL,
+		       V.REMARK,
+		       (SELECT PV.MASTER_CODE FROM T_MAST_TYPE PV WHERE PV.ID =  V.P_ID) AS P_ID,
+		       V.NODE_TYPE,
+		       V.USE_FLAG,
+		       SORT_NUM
+		  FROM T_MAST_TYPE V
+		 WHERE V.ID = #{id}
+		</select>
+			
+		<!--更新信息    根据Id获取码表类型的信息 -->
+		<update id="updateMastTypeInfo" parameterType="mastTypeVo">
+			UPDATE T_MAST_TYPE
+			<trim prefix="SET" suffixOverrides=",">
+				<!-- >if test="masterCode !=null">MASTER_CODE=#{masterCode}, </if -->
+				<if test="masterName !=null"> MASTER_NAME=#{masterName},</if>
+				<if test="masterVal !=null"> MASTER_VAL=#{masterVal},</if>
+				<if test="remark !=null">REMARK=#{remark},</if>
+				<if test="pid !=null">P_ID=#{pid},</if> 
+				<if test="ndType !=null">NODE_TYPE=#{ndType},</if> 
+				<if test="useFlag !=null">USE_FLAG=#{useFlag},</if> 
+				<if test="sortNum !=null">SORT_NUM=#{sortNum},</if>
+			</trim>
+			WHERE ID =#{id}
+		</update>
+			
+		<!-- 根据主键获取码表值的信息 -->
+		<select id="getMastInfoListById" resultMap="mastValVo" parameterType="mastValVo">
+			SELECT * FROM (SELECT TMP_TB.*, ROWNUM ROW_ID
+			  FROM (SELECT V.ID,
+			               V.TYPE_ID,
+			               V.MASTER_CODE,
+			               V.VAL_NAME,
+			               V.REMARK,
+			               V.VAL_CODE,
+			               V.USE_FLAG,
+			               V.EXT1,
+			               V.SORT_NUM
+			          FROM T_MAST_VAL V
+			         where V.MASTER_CODE = #{masterCode}
+			         ORDER BY V.SORT_NUM) TMP_TB WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+			    WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+		</select>
+			
+		<!-- 根据主键获取码表值的信息总数 -->
+		<select id="getMastInfoListByIdTotal" resultType="String" parameterType="mastValVo">
+			SELECT COUNT(*)
+			  FROM (SELECT V.ID,
+			               V.TYPE_ID,
+			               V.MASTER_CODE,
+			               V.VAL_NAME,
+			               V.REMARK,
+			               V.VAL_CODE,
+			               V.USE_FLAG,
+			               V.EXT1,
+			               V.SORT_NUM
+			          FROM T_MAST_VAL V
+			         WHERE V.MASTER_CODE = #{masterCode})
+		</select>
+			
+		<!-- 根据Id获取码表值的信息 -->
+		<select id="getMastValInfoById" resultMap="mastValVo" parameterType="mastValVo">
+			SELECT V.ID,
+			       V.TYPE_ID,
+			       V.MASTER_CODE,
+			       V.VAL_NAME,
+			       V.REMARK,
+			       V.VAL_CODE,
+			       V.USE_FLAG,
+			       V.EXT1,
+			       V.SORT_NUM
+			 FROM T_MAST_VAL V
+			WHERE V.ID = #{id}
+		</select>
+			
+		<!--更新信息    根据Id获取码表值的信息 -->
+		<update id="updateMastValInfo" parameterType="mastValVo">
+			UPDATE T_MAST_VAL
+			<trim prefix="SET" suffixOverrides=",">
+				<if test="masterCode !=null">MASTER_CODE=#{masterCode}, </if>
+				<if test="valName !=null"> VAL_NAME=#{valName},</if>
+				<if test="valCode !=null">VAL_CODE=#{valCode},</if>
+				<if test="remark !=null">REMARK=#{remark},</if> 
+				<if test="useFlag !=null">USE_FLAG=#{useFlag},</if> 
+				<if test="sortNum !=null">SORT_NUM=#{sortNum},</if> 
+			</trim>
+			WHERE ID =#{id}
+		</update>
+			
+		<!-- 添加码表值信息 -->
+		<insert id="addMastValInfo" parameterType="mastValVo">	
+			INSERT INTO T_MAST_VAL
+			  (ID,
+			   TYPE_ID,
+			   MASTER_CODE,
+			   VAL_NAME,
+			   REMARK,
+			   VAL_CODE,
+			   USE_FLAG,
+			   SORT_NUM)
+			VALUES
+			  (SYS_GUID(),
+			   #{typeId},
+			   #{masterCode},
+			   #{valName},
+			   #{remark},
+			   #{valCode},
+			   #{useFlag},
+			   #{sortNum})
+		</insert>
+			
+		<!-- 验证Code 是否存在 -->
+		<select id="initCount" resultType="int"  parameterType="mastTypeVo">
+			SELECT COUNT(1) FROM T_MAST_TYPE WHERE	MASTER_CODE= #{masterCode}
+		</select>
+			
+		<!-- 验证值编码是否已经存在 -->
+		<select id="valCodeCount" resultType="int" parameterType="mastValVo">
+			SELECT COUNT(1) FROM T_MAST_VAL WHERE MASTER_CODE= #{masterCode} AND VAL_CODE = #{valCode}
+		</select>
+		
+		<!-- 根据码表值的id来删除对应的码表值，单独删除一个码表值时使用 -->	
+		<delete id="deleteMastVal"  parameterType="mastTypeVo">
+			delete from T_MAST_VAL where id=#{id}
+		</delete>
+			
+		<!-- 根据码表ID删除对应的码表值 ，删除码表时使用，将码表下对应的码表值均删除-->	
+		<delete id="deleteVal"  parameterType="mastTypeVo">
+			DELETE FROM T_MAST_VAL WHERE TYPE_ID=#{id}
+		</delete>
+			
+		<!-- 删除单个码表 -->
+		<delete id="deleteMastType"  parameterType="mastTypeVo">
+			DELETE FROM T_MAST_TYPE WHERE ID=#{id}
+		</delete>
+			
+		<!-- 获取码表树 -->
+		<select id="getMastTree" resultType="mastBaseMessageVo" parameterType="mastBaseMessageVo">
+			SELECT  T.ID, 
+		        T.MASTER_NAME, 
+		        T.MASTER_CODE, 
+		        T.P_ID, t.remark, 
+		        T.sort_num
+		     FROM T_MAST_TYPE T
+		 ORDER BY T.SORT_NUM		
+		</select>
+			
+		<!-- 根据节点获取单个码表信息 -->
+		<select id="getSignleMastByID" resultType="mastBaseMessageVo" parameterType="mastBaseMessageVo">
+			SELECT T.ID,
+			       T.MASTER_CODE,
+			       T.MASTER_NAME,
+			       T.P_ID,
+			       T.MASTER_VAL,
+			       (CASE T.USE_FLAG
+			         WHEN '1' THEN
+			          '使用'
+			         ELSE
+			          '不使用'
+			       END) USE_FLAG,
+			       T.REMARK
+			  FROM T_MAST_TYPE T
+			 WHERE T.MASTER_CODE = #{master_code}
+		</select>
+			
+		<!-- 获取上级代码输入框的下来匡 -->
+		<select id="getParentComList" resultMap="comBoxSelectVo" parameterType="comBoxSelectVo">
+			SELECT T.MASTER_NAME TEXT, 
+			       T.MASTER_CODE ID
+			     FROM T_MAST_TYPE T
+			 ORDER BY T.MASTER_NAME
+		</select>
+		<!-- 根据码表编码获取码表编码对应的iD -->
+		<select id="getIdByMasterCode" resultType="String" parameterType="String">
+		     SELECT T.ID FROM T_MAST_TYPE T WHERE T.MASTER_CODE = #{masterCode}
+		</select>
+		<!-- 获取异步加载树的数据 -->
+		<select id="getSynocMastTree" resultType="mastBaseMessageVo" parameterType="String">
+		     SELECT T.MASTER_NAME, T.MASTER_CODE, T.P_ID
+  				FROM T_MAST_TYPE T
+ 				WHERE T.P_ID = #{nodeId}
+				 ORDER BY T.SORT_NUM		     
+		</select>
+</mapper>

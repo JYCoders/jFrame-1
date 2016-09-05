@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jysoft.cbb.dao.QuartzLogMapper">
+	<resultMap type="quartzLogVo" id="quartzLogVo">
+		 <result property="taskInstid"     column="TASK_INSTID" />
+		 <result property="taskId"   column="TASK_ID"      />
+		 <result property="startDate"   column="START_DATE" />
+		 <result property="endDate"  column="END_DATE"         />
+		 <result property="excStat"   column="EXC_STAT"      />
+		 <result property="excSrc"  column="EXC_SRC"    />
+		 <result property="taskName"  column="TASK_NAME"    />
+	</resultMap>
+	
+	<!-- 根据任务ID获取日志信息 -->
+	<select id="getTaskLogById" parameterType="quartzLogVo" resultMap="quartzLogVo">
+		SELECT 
+			TASK_INSTID, TASK_ID, START_DATE, END_DATE, EXC_STAT, EXC_SRC
+		FROM 
+			T_QUARTZ_LOG
+		WHERE 
+			TASK_ID = #{taskId}
+	</select>
+	
+	<!-- 插入日志信息 -->
+	<insert id="insertLog" parameterType="quartzLogVo">
+		INSERT INTO 
+			T_QUARTZ_LOG(TASK_INSTID, TASK_ID, START_DATE, END_DATE, EXC_STAT, EXC_SRC)
+		VALUES
+			(#{taskInstid}, #{taskId}, #{startDate}, #{endDate}, #{excStat}, #{excSrc})	
+	</insert>
+	
+	<update id="updateLog" parameterType="quartzLogVo">
+		update T_QUARTZ_LOG  
+		<set>
+			END_DATE      =   #{endDate },
+			EXC_STAT      =   #{excStat }
+		</set>
+		where TASK_INSTID = #{taskInstid}
+	</update>
+	
+	<!-- 根据TaskID获取日志信息 -->
+	<select id="getLogByTaskId" parameterType="quartzLogVo" resultMap="quartzLogVo">
+	SELECT * FROM (SELECT TMP_TB.*,ROWNUM ROW_ID FROM (
+	    SELECT l.TASK_INSTID,
+               s.TASK_NAME,
+               l.START_DATE,
+               l.END_DATE,
+               l.EXC_STAT,
+               l.EXC_SRC
+        FROM 
+            T_QUARTZ_LOG l
+        LEFT JOIN  T_QUARTZ_SET s ON s.task_id=l.task_id  
+        where l.TASK_ID = #{taskId}	order by l.start_date desc	
+       )  TMP_TB WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+	     WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+	</select>
+	
+	<!-- 根据TaskID获取日志信息总数 -->
+	<select id="getLogByTaskIdTotal" parameterType="quartzLogVo" resultType="String">
+	select count(*) from(
+	    SELECT l.TASK_INSTID,
+               s.TASK_NAME,
+               l.START_DATE,
+               l.END_DATE,
+               l.EXC_STAT,
+               l.EXC_SRC
+        FROM 
+            T_QUARTZ_LOG l
+        LEFT JOIN  T_QUARTZ_SET s ON s.task_id=l.task_id  
+        where l.TASK_ID = #{taskId}	order by l.start_date desc	)
+	</select>
+	
+	
+	<!-- 获取START_DATE在startDate, endDate之间的某个调度任务的最新日志信息 -->
+	<select id="getLastTaskLog"  resultMap="quartzLogVo" parameterType="quartzLogVo">
+		SELECT TASK_INSTID,TASK_ID,START_DATE,END_DATE,EXC_STAT,EXC_SRC
+        FROM T_QUARTZ_LOG t
+        where t.TASK_ID = #{taskId}	
+          and to_date(START_DATE,'yyyy-mm-dd hh24:mi:ss')=
+              (select max(to_date(START_DATE,'yyyy-mm-dd hh24:mi:ss')) 
+               from T_QUARTZ_LOG
+               where TASK_ID = t.TASK_ID
+                 and to_date(START_DATE,'yyyy-mm-dd hh24:mi:ss')<![CDATA[ >= ]]> to_date(#{startDate},'yyyy-mm-dd hh24:mi:ss')
+          		 and to_date(START_DATE,'yyyy-mm-dd hh24:mi:ss')<![CDATA[ <   ]]>  to_date(#{endDate},'yyyy-mm-dd hh24:mi:ss')
+              )
+			AND ROWNUM = '1'
+		ORDER BY T.START_DATE DESC    
+	</select>
+</mapper>

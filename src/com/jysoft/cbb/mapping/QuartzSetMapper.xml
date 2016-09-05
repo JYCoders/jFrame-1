@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jysoft.cbb.dao.QuartzSetMapper">
+	<resultMap type="quartzSetVo" id="quartzSetVo">
+		 <result property="taskId"     column="TASK_ID"        />
+		 <result property="taskName"   column="TASK_NAME"      />
+		 <result property="taskDesc"   column="TASK_DES" />
+		 <result property="taskCycle"  column="CYCLE"         />
+		 <result property="cronExpression"   column="TASK_DATE"      />
+		 <result property="taskParm1"  column="PARM_1"    />
+		 <result property="taskParmVal1" column="PARM_VALU1"    />
+		 <result property="taskParm2"   column="PARM_2"    />
+		 <result property="taskParmVal2" column="PARM_VALU2"    />
+		 <result property="taskParm3" column="PARM_3"    />
+		 <result property="taskParmVal3" column="PARM_VALU3"    />
+		 <result property="taskProcName" column="PROC_NAME"    />
+		 <result property="taskProcClass" column="PROC_CLASS"    />
+		 <result property="startStat"    column="START_STAT"    />
+		 <result property="ctiveTimeName"    column="CTIVE_TIME_NAME"/>
+		 <result property="exeStat"    column="EXE_STAT"/>
+		 <result property="startMode"    column="START_MODE"/>
+	</resultMap>
+	
+	<!-- 获取所有任务 -->
+	<select id="getAllTask" resultMap="quartzSetVo">
+		SELECT 
+			TASK_ID, TASK_NAME, TASK_DES,(select t2.val_name text from T_MAST_VAL t2
+		          where t2.use_flag = '1' 
+		            and t2.type_id = (select m.id from T_MAST_TYPE m
+					                    where m.use_flag = '1'
+					                      and m.master_code = 'CYCLE')
+		            and t2.val_code = t1.CYCLE) CYCLE,
+		             CTIVE_TIME_NAME, TASK_DATE, PARM_1, PARM_VALU1, PARM_2, PARM_VALU2, 
+			PARM_3, PARM_VALU3, PROC_NAME, PROC_CLASS,  (select t2.val_name text from T_MAST_VAL t2
+		          where t2.use_flag = '1' 
+		            and t2.type_id = (select m.id from T_MAST_TYPE m
+					                    where m.use_flag = '1'
+					                      and m.master_code = 'START_STAT')
+		            and t2.val_code = t1.START_STAT) START_STAT  
+		FROM 
+			T_QUARTZ_SET T1 
+			ORDER BY upper(T1.TASK_NAME)
+	</select>
+	
+	<!-- 获取所有任务 -->
+	<select id="getAllTaskByPage" resultMap="quartzSetVo" parameterType="quartzSetVo">
+		SELECT *
+		  FROM (SELECT TMP_TB.*, ROWNUM ROW_ID
+		          FROM (SELECT TASK_ID,
+		                       TASK_NAME,
+		                       TASK_DES,
+		                       T2.VAL_NAME CYCLE,
+		                       CTIVE_TIME_NAME,
+		                       TASK_DATE,
+		                       PARM_1,
+		                       PARM_VALU1,
+		                       PARM_2,
+		                       PARM_VALU2,
+		                       PARM_3,
+		                       PARM_VALU3,
+		                       PROC_NAME,
+		                       PROC_CLASS,
+		                       T3.VAL_NAME START_STAT,
+		                       T4.VAL_NAME EXE_STAT,
+							   T5.VAL_NAME START_MODE
+		                  FROM T_QUARTZ_SET T1,
+		                       (SELECT K2.VAL_CODE, K2.VAL_NAME
+		                          FROM T_MAST_TYPE K1, T_MAST_VAL K2
+		                         WHERE K1.ID = K2.TYPE_ID
+		                           AND K1.MASTER_CODE = 'CYCLE'
+		                           AND K1.USE_FLAG = '1') T2,
+		                       (SELECT K2.VAL_CODE, K2.VAL_NAME
+		                          FROM T_MAST_TYPE K1, T_MAST_VAL K2
+		                         WHERE K1.ID = K2.TYPE_ID
+		                           AND K1.MASTER_CODE = 'START_STAT'
+		                           AND K1.USE_FLAG = '1') T3,
+		                       (SELECT K2.VAL_CODE, K2.VAL_NAME
+		                          FROM T_MAST_TYPE K1, T_MAST_VAL K2
+		                         WHERE K1.ID = K2.TYPE_ID
+		                           AND K1.MASTER_CODE = 'TASK_STATUS'
+		                           AND K1.USE_FLAG = '1') T4,
+								(SELECT K2.VAL_CODE, K2.VAL_NAME
+	                              FROM T_MAST_TYPE K1, T_MAST_VAL K2
+	                             WHERE K1.ID = K2.TYPE_ID
+	                               AND K1.MASTER_CODE = 'START_MODE'
+	                               AND K1.USE_FLAG = '1') T5
+		                 WHERE T1.CYCLE = T2.VAL_CODE(+)
+		                   AND T1.START_STAT = T3.VAL_CODE(+)
+		                   AND T1.EXE_STAT = T4.VAL_CODE(+)
+						   AND T1.START_MODE = T5.VAL_CODE(+)
+						<if test="taskName!=null and taskName!='' ">
+					       AND UPPER(T1.TASK_NAME) LIKE UPPER('%'||#{taskName}||'%')
+					    </if>
+						<if test="startStat!=null and startStat!='' ">
+					       AND T1.START_STAT = #{startStat}
+					    </if>
+						ORDER BY UPPER(T1.TASK_NAME)
+			 )  TMP_TB WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+	     WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+	</select>
+	
+	
+	<!-- 获取所有任务总数 -->
+	<select id="getAllTaskTotal" parameterType="quartzSetVo" resultType="String">
+	 	SELECT COUNT(*) FROM (
+			SELECT TASK_ID,
+                   TASK_NAME,
+                   TASK_DES,
+                   T2.VAL_NAME CYCLE,
+                   CTIVE_TIME_NAME,
+                   TASK_DATE,
+                   PARM_1,
+                   PARM_VALU1,
+                   PARM_2,
+                   PARM_VALU2,
+                   PARM_3,
+                   PARM_VALU3,
+                   PROC_NAME,
+                   PROC_CLASS,
+                   T3.VAL_NAME START_STAT,
+                   T4.VAL_NAME EXE_STAT
+              FROM T_QUARTZ_SET T1,
+                   (SELECT K2.VAL_CODE, K2.VAL_NAME
+                      FROM T_MAST_TYPE K1, T_MAST_VAL K2
+                     WHERE K1.ID = K2.TYPE_ID
+                       AND K1.MASTER_CODE = 'CYCLE'
+                       AND K1.USE_FLAG = '1') T2,
+                   (SELECT K2.VAL_CODE, K2.VAL_NAME
+                      FROM T_MAST_TYPE K1, T_MAST_VAL K2
+                     WHERE K1.ID = K2.TYPE_ID
+                       AND K1.MASTER_CODE = 'START_STAT'
+                       AND K1.USE_FLAG = '1') T3,
+                   (SELECT K2.VAL_CODE, K2.VAL_NAME
+                      FROM T_MAST_TYPE K1, T_MAST_VAL K2
+                     WHERE K1.ID = K2.TYPE_ID
+                       AND K1.MASTER_CODE = 'TASK_STATUS'
+                       AND K1.USE_FLAG = '1') T4
+             WHERE T1.CYCLE = T2.VAL_CODE(+)
+               AND T1.START_STAT = T3.VAL_CODE(+)
+               AND T1.EXE_STAT = T4.VAL_CODE(+)
+			<if test="taskName!=null and taskName!='' ">
+		       AND upper(T1.TASK_NAME) like upper('%'||#{taskName}||'%')
+		    </if>
+			<if test="startStat!=null and startStat!='' ">
+		       AND T1.START_STAT = #{startStat}
+		    </if>
+			 )
+	</select>
+	
+	<!-- 获取所有系统启动后自动装载的任务 -->
+	<select id="getAutoStartTask" resultMap="quartzSetVo">
+		SELECT 
+			TASK_ID, TASK_NAME, TASK_DES,
+			(select t2.val_name text from T_MAST_VAL t2
+		          where t2.use_flag = '1' 
+		            and t2.type_id = (select m.id from T_MAST_TYPE m
+					                    where m.use_flag = '1'
+					                      and m.master_code = 'CYCLE')
+		            and t2.val_code = t.CYCLE) CYCLE, 
+		    CTIVE_TIME_NAME, TASK_DATE, PROC_NAME, PROC_CLASS, START_MODE, START_STAT, EXE_STAT
+		FROM 
+			T_QUARTZ_SET t
+		WHERE t.START_MODE = '1'	
+	</select>
+	<!-- 根据任务ID获取任务信息 -->
+	<select id="getTaskById" parameterType="quartzSetVo" resultMap="quartzSetVo">
+		SELECT 
+			TASK_ID, TASK_NAME, TASK_DES, CYCLE,CTIVE_TIME_NAME, TASK_DATE, PARM_1, PARM_VALU1, PARM_2, PARM_VALU2, 
+			PARM_3, PARM_VALU3, PROC_NAME, PROC_CLASS,  START_MODE   
+		FROM 
+			T_QUARTZ_SET
+		WHERE 
+			TASK_ID = #{taskId}
+			ORDER BY TASK_NAME
+	</select>
+	
+	<!-- 根据条件获取任务信息 -->
+	<select id="getTaskByCondition" parameterType="quartzSetVo" resultMap="quartzSetVo">
+		SELECT 
+			TASK_ID, TASK_NAME, TASK_DES,(select t2.val_name text from T_MAST_VAL t2
+		          where t2.use_flag = '1' 
+		            and t2.type_id = (select m.id from T_MAST_TYPE m
+					                    where m.use_flag = '1'
+					                      and m.master_code = 'CYCLE')
+		            and t2.val_code = t1.CYCLE) CYCLE,
+		             CTIVE_TIME_NAME, TASK_DATE, PARM_1, PARM_VALU1, PARM_2, PARM_VALU2, 
+			PARM_3, PARM_VALU3, PROC_NAME, PROC_CLASS,  (select t2.val_name text from T_MAST_VAL t2
+		          where t2.use_flag = '1' 
+		            and t2.type_id = (select m.id from T_MAST_TYPE m
+					                    where m.use_flag = '1'
+					                      and m.master_code = 'START_STAT')
+		            and t2.val_code = t1.START_STAT) START_STAT  
+		FROM 
+			T_QUARTZ_SET T1 
+		<if test="taskName!=null and taskName!='' ">
+		    WHERE upper(T1.TASK_NAME) like upper('%'||#{taskName}||'%')
+		</if>
+		ORDER BY T1.TASK_NAME
+	</select>
+	
+	<!-- 更新任务状态 -->
+	<update id="setTaskStatus" parameterType="quartzSetVo">
+		UPDATE T_QUARTZ_SET
+		<set>
+			START_STAT = #{taskStatus}
+		</set>
+		WHERE
+			TASK_ID = #{taskId}
+	</update>
+	
+	<!-- 新增调度任务 -->
+	<insert id="insert" parameterType="quartzSetVo">
+		 INSERT INTO T_QUARTZ_SET(
+			  TASK_ID,
+		      TASK_NAME,
+		      TASK_DES,
+		      PROC_NAME,
+		      PROC_CLASS,
+		      CYCLE,
+		      TASK_DATE,
+		      START_MODE,
+		      CTIVE_TIME_NAME
+		 )VALUES(
+		      #{taskId},
+		      #{taskName,jdbcType=VARCHAR},
+		      #{taskDesc,jdbcType=VARCHAR},
+		      #{taskProcName,jdbcType=VARCHAR},
+		      #{taskProcClass,jdbcType=VARCHAR}, 
+		      #{taskCycle,jdbcType=VARCHAR}, 
+		      #{cronExpression,jdbcType=VARCHAR}, 
+		      #{startMode,jdbcType=VARCHAR},
+		      #{ctiveTimeName,jdbcType=VARCHAR}
+		)
+	</insert>
+	<delete id="deleteById" parameterType="quartzSetVo">
+		DELETE FROM t_quartz_set t WHERE t.task_id=#{taskId}
+	</delete>
+	<update id="updateById" parameterType="quartzSetVo">
+		UPDATE T_QUARTZ_SET
+			<set>
+		      TASK_NAME =  #{taskName,jdbcType=VARCHAR},
+		      TASK_DES = #{taskDesc,jdbcType=VARCHAR},
+		      PROC_NAME = #{taskProcName,jdbcType=VARCHAR},
+		      PROC_CLASS =  #{taskProcClass,jdbcType=VARCHAR}, 
+		      CYCLE = #{taskCycle,jdbcType=VARCHAR}, 
+		      TASK_DATE = #{cronExpression,jdbcType=VARCHAR}, 
+		      START_MODE = #{startMode,jdbcType=VARCHAR},
+		      CTIVE_TIME_NAME = #{ctiveTimeName,jdbcType=VARCHAR}
+			</set>
+			WHERE TASK_ID = #{taskId}
+	</update>
+	
+	<!-- 根据条件获取任务信息 -->
+	<select id="checkQuartzLog" parameterType="java.lang.String" resultType="Integer">
+		SELECT COUNT(*)
+		  FROM T_QUARTZ_LOG
+		 WHERE TASK_ID = #{taskId}
+		   AND START_DATE >= #{date}
+		   AND END_DATE >= #{date}
+	</select>
+	
+	<!-- 更新任务执行状态 -->
+	<update id="updateTaskExeStatus" parameterType="quartzSetVo" >
+		UPDATE T_QUARTZ_SET
+		<set>
+	      EXE_STAT =  #{exeStat,jdbcType=VARCHAR}
+	    </set>
+		WHERE
+			TASK_ID = #{taskId}
+	</update>
+	
+	<!-- 更新任务启动状态 -->
+	<update id="updateTaskStartStatus" parameterType="quartzSetVo" >
+		UPDATE T_QUARTZ_SET
+		<set>
+	      START_STAT =  #{startStat,jdbcType=VARCHAR}
+	    </set>
+		WHERE
+			TASK_ID = #{taskId}
+	</update>
+	
+</mapper>

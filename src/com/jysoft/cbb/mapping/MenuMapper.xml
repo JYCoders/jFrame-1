@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jysoft.cbb.dao.MenuMapper">
+	<resultMap type="menuVo" id="menuVo">
+	    <id property="menuId"     column="MENU_ID"  />
+	    <result property="menuName"     column="MENU_NAME"  />
+	    <result property="display"     column="DISPLAY"  />
+	    <result property="linkUrl"     column="LINK_URL"  />
+	    <result property="linkTarget"     column="LINK_TARGET"  />
+	    <result property="icon"     column="ICON"  />
+	    <result property="iconOpen"     column="ICON_OPEN"  />
+	    <result property="openStatus"     column="OPEN_STATUS"  />
+	    <result property="menuType"     column="MENU_TYPE"  />
+	    <result property="modifyDate"     column="MODIFY_DATE"  />
+	    <result property="ordinal"     column="ORDINAL"  />
+	    <result property="parentId"     column="PARENT_ID"  />
+	    <result property="pageWidth"     column="PAGE_WIDTH"  />
+	    <result property="pageHeight"     column="PAGE_HEIGHT"  />
+	    <result property="defaultWidth"     column="DEFAULT_WIDTH"  />
+	    <result property="defaultHeight"     column="DEFAULT_HEIGHT"  />
+	</resultMap>
+	
+	<!--获取所有菜单 -->
+	<select id="getAll" resultMap="menuVo">
+		SELECT *
+		  FROM T_MENU 		 
+		 ORDER BY ORDINAL
+	</select>
+	
+	<!--根据角色id查询角色所对应的菜单 -->
+	<select id="getMenusByRoleId" resultMap="menuVo" parameterType="roleVo">
+	SELECT T1.*
+	FROM T_MENU T1, T_ROLE_MENU T2
+	WHERE T1.MENU_ID = T2.MENU_ID
+	AND T2.ROLE_ID = #{roleId}
+	ORDER BY T1.ORDINAL
+	</select>
+	
+	<!--根据用户id查询用户所对应的菜单 -->
+	<select id="getMenusByUserId" resultMap="menuVo" parameterType="String">
+		SELECT DISTINCT *
+		  FROM T_MENU
+		 WHERE MENU_ID IN
+		       (SELECT MENU_ID
+		          FROM T_ROLE_MENU
+		         WHERE ROLE_ID IN
+		               (SELECT ROLE_ID FROM T_USER_ROLE WHERE USER_ID = #{userId}))
+		 AND MENU_TYPE = '1'
+		 ORDER BY ORDINAL
+	</select>
+	
+	<!--根据菜单id查询菜单数据 -->
+	<select id="queryMenuDataByMenuId" resultMap="menuVo" parameterType="menuVo">
+	  SELECT * FROM (SELECT TMP_TB.*,ROWNUM ROW_ID FROM (
+		SELECT * FROM T_MENU T1 
+		 WHERE 1=1
+        <if test="menuId != null and menuId != '' ">
+		AND T1.MENU_ID = #{menuId}
+		</if>
+		ORDER BY T1.ORDINAL
+		 )  TMP_TB WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+	     WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+	</select>
+	
+	<!--根据菜单id查询菜单数据 总数 -->
+	<select id="queryMenuDataByMenuIdTotal" resultType="String" parameterType="menuVo">
+	   SELECT COUNT(*) FROM(
+		SELECT * FROM T_MENU T1 
+		 WHERE 1=1
+        <if test="menuId != null and menuId != '' ">
+		AND T1.MENU_ID = #{menuId}
+		</if>
+		ORDER BY T1.ORDINAL)
+	</select>	
+	
+	<!--根据条件查询所需要菜单 -->
+	<select id="getMenusByCondition" resultMap="menuVo" parameterType="menuVo">
+	SELECT * FROM (SELECT TMP_TB.*,ROWNUM ROW_ID FROM (
+		SELECT * FROM T_MENU T1 
+		 WHERE 1=1
+        <if test="menuId != null and menuId != '' ">
+		<![CDATA[	
+		AND T1.PARENT_ID = #{menuId}
+		]]>
+		</if>
+       <if test="menuName != null and menuName != '' ">
+		<![CDATA[	
+		AND T1.MENU_NAME LIKE '%'||#{menuName}||'%'
+		]]>
+		</if>
+		ORDER BY T1.ORDINAL
+		 )  TMP_TB WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+	     WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+	</select>	
+	
+	<!--根据条件查询所需要菜单 的总数-->
+	<select id="getMenusByConditionTotal" resultType="String" parameterType="menuVo">
+	SELECT COUNT(*) FROM( 
+		SELECT * FROM T_MENU T1 
+		 WHERE 1=1
+        <if test="menuId != null and menuId != '' ">
+		<![CDATA[	
+		AND T1.PARENT_ID = #{menuId}
+		]]>
+		</if>
+       <if test="menuName != null and menuName != '' ">
+		<![CDATA[	
+		AND T1.MENU_NAME LIKE '%'||#{menuName}||'%'
+		]]>
+		</if>
+		ORDER BY T1.ORDINAL
+		)
+	</select>	
+	
+	<!--删除拥有该菜单的角色 -->	
+	<delete id="deleteRoleMnu" parameterType="menuVo">
+		DELETE FROM T_ROLE_MENU WHERE MENU_ID=#{menuId}
+	</delete>
+	
+	<!--删除菜单 -->
+	<delete id="delete" parameterType="menuVo">
+		DELETE FROM T_MENU WHERE menu_ID=#{menuId}
+	</delete>
+	
+	<!--新增菜单 -->
+	<insert id="insert" parameterType="menuVo">
+		INSERT INTO T_MENU(
+			  MENU_ID    
+			, PARENT_ID  
+			, MENU_NAME  
+			, DISPLAY  
+			, LINK_URL  
+			, ORDINAL    
+			, PAGE_WIDTH
+			, PAGE_HEIGHT 
+			, ICON
+			, ICON_OPEN
+			, MENU_TYPE
+		)VALUES(
+	        #{menuId},
+	        #{parentId},
+	        #{menuName},
+	        #{display},
+	        #{linkUrl},
+	        #{ordinal},
+	        #{pageWidth},
+			#{pageHeight} ,
+			#{icon} ,
+			#{iconOpen} ,
+			'1'
+		)
+	</insert>
+	
+	<!--更新菜单 -->
+	<update id="update" parameterType="menuVo">
+		UPDATE T_MENU
+		<set>            
+			ORDINAL= #{ordinal},
+			PAGE_WIDTH=#{pageWidth,jdbcType=INTEGER},
+			PAGE_HEIGHT=#{pageHeight,jdbcType=INTEGER},
+			ICON=#{icon,jdbcType=VARCHAR},
+			ICON_OPEN=#{iconOpen,jdbcType=VARCHAR},
+			DEFAULT_WIDTH=#{defaultWidth,jdbcType=INTEGER},
+			DEFAULT_HEIGHT=#{defaultHeight,jdbcType=INTEGER},
+			DISPLAY=#{display,jdbcType=VARCHAR},
+			LINK_URL=#{linkUrl},
+			MENU_NAME=#{menuName}
+		</set>
+		WHERE MENU_ID = #{menuId}
+	</update>
+	
+	<!--根据菜单Id获取菜单对象 -->
+	<select id="getMenuInfoByMenuId" resultMap="menuVo" parameterType="menuVo">
+		SELECT * FROM T_MENU T1 
+		 WHERE 1=1
+        <if test="menuId != null and menuId != '' ">
+		AND T1.MENU_ID = #{menuId}
+		</if>
+		ORDER BY t1.ORDINAL
+	</select>
+	
+	<!--根据父级菜单获取子级菜单最大的id -->
+	<select id="getMaxSubId" resultMap="menuVo" parameterType="String">
+	 SELECT 
+	   	<if test='_parameter != "M" '>
+	 		MAX(TO_NUMBER(SUBSTR(MENU_ID,INSTR(MENU_ID,'_')+1))) MENU_ID 
+	 	</if>
+	 	<if test='_parameter =="M"'>
+	 		MAX(TO_NUMBER(SUBSTR(MENU_ID,INSTR(MENU_ID,'_')+2))) MENU_ID 
+	 	</if>
+	 	FROM T_MENU  WHERE PARENT_ID = #{pId}
+	</select>
+	
+	<!--更新菜单的父菜单的URL -->
+	<update id="changeFatherUrl" parameterType="roleMenuVo">
+	  UPDATE T_MENU T SET T.LINK_URL = NULL WHERE T.MENU_ID =  #{parentId}
+	</update>
+	
+</mapper>

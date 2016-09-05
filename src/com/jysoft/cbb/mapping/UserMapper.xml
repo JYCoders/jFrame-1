@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jysoft.cbb.dao.UserMapper">
+	<!-- 用户信息 -->
+	<resultMap type="userVo" id="userVo">
+		<id property="userId"           column="USER_ID"        />
+		<result property="loginId"      column="LOGIN_ID"       />
+		<result property="userName"	    column="USER_NAME"      />
+		<result property="userPass"	    column="USER_PASS"      />
+		<result property="deptId"       column="DEPT_ID"        />
+		<result property="deptName"     column="DEPT_NAME"      />
+		<result property="enable"       column="ENABLE"         />
+		<result property="modifyDate"   column="MODIFY_DATE"    />
+		<result property="userLevel"    column="USER_LEVEL"     />
+		<result property="empId"   		column="EMP_ID"     />
+		<result property="orgId"   		column="ORG_ID"     />
+		<result property="roleId"   	column="ROLE_ID"     />
+		<result property="comId"   		column="COM_ID"     />
+		<result property="comName"   	column="COM_NAME"     />
+		<result property="empName"   	column="EMP_NAME"     />
+		<result property="topComId"   	column="TOPCOM_ID"     />
+	</resultMap>
+	
+	<!-- 菜单信息 -->
+	<resultMap type="menuVo" id="menuVo">
+	    <id property="menuId"     column="MENU_ID"  />
+	    <result property="menuName"     column="MENU_NAME"  />
+	    <result property="display"     column="DISPLAY"  />
+	    <result property="linkUrl"     column="LINK_URL"  />
+	    <result property="linkTarget"     column="LINK_TARGET"  />
+	    <result property="icon"     column="ICON"  />
+	    <result property="iconOpen"     column="ICON_OPEN"  />
+	    <result property="openStatus"     column="OPEN_STATUS"  />
+	    <result property="menuType"     column="MENU_TYPE"  />
+	    <result property="modifyDate"     column="MODIFY_DATE"  />
+	    <result property="ordinal"     column="ORDINAL"  />
+	    <result property="parentId"     column="PARENT_ID"  />
+	    <result property="pageWidth"     column="PAGE_WIDTH"  />
+	    <result property="pageHeight"     column="PAGE_HEIGHT"  />
+	    <result property="defaultWidth"     column="DEFAULT_WIDTH"  />
+	    <result property="defaultHeight"     column="DEFAULT_HEIGHT"  />
+	</resultMap>
+	
+	<!-- 审计日志 -->
+	<resultMap type="auditLogVo" id="auditLogVo">
+		<id property="id"           column="ID"        />
+		<result property="loginId"      column="LOGIN_ID"       />
+		<result property="userName"	    column="USER_NAME"      />
+		<result property="loginTime"	    column="LOGIN_TIME"      />
+		<result property="loginOutTime"       column="LOGINOUT_TME"        />
+		<result property="loginState"     column="LOGIN_STATE"      />
+		<result property="addMac"       column="ADD_MAC"         />
+		<result property="addIp"   column="ADD_IP"    />
+		<result property="audState"    column="AUD_STATE"     />
+	</resultMap>
+	
+	<!-- 管理员操作日志 -->
+	<resultMap type="adminOptLogVo" id="adminOptLogVo">
+		<id property="id"           column="ID"        />
+		<result property="adminUser"      column="ADMIN_USER"       />
+		<result property="optUser"	    column="OPT_USER"      />
+		<result property="optTime"	    column="OPT_TIME"      />
+		<result property="optType"       column="OPT_TYPE"        />
+	</resultMap>
+	
+	<!-- 获取所有用户信息 -->
+	<select id="getAll" resultMap="userVo">
+		SELECT * FROM T_USER WHERE ENABLE = '1'
+	</select>  
+	
+	<!-- 分页获取用户信息 -->
+	<select id="getAllPage" parameterType="userVo" resultMap="userVo">
+		 SELECT *
+		  FROM (SELECT TMP_TB.*, ROWNUM ROW_ID
+		          FROM (SELECT *
+		                  FROM T_USER
+		                 WHERE ENABLE = '1'
+		                 ORDER BY MODIFY_DATE DESC) TMP_TB
+		         WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+		 WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows} 
+	</select> 
+	
+	<!-- 获取用户总数 -->
+	<select id="getAllTotal" resultType="String">
+		SELECT COUNT(1) FROM (SELECT * FROM T_USER WHERE ENABLE = '1')
+	</select> 
+	
+	<!-- 通过用户ID获取用户信息 -->
+	<select id="getUserById" parameterType="String" resultMap="userVo">
+		SELECT *
+		  FROM T_USER
+		 WHERE USER_ID = #{userId}
+		   AND ENABLE = '1'
+	</select>    
+	
+	<!-- 通过登录ID获取用户信息 -->	
+	<select id="getUserByLoginId"  parameterType="String" resultMap="userVo">
+ 		SELECT TEM.*,
+		       B.ORG_NAME COM_NAME,
+		       (SELECT ORG_ID
+		          FROM T_ORG
+		         WHERE NODE_TYPE = '1'
+		           AND P_ID IS NOT NULL) TOPCOM_ID
+		  FROM (SELECT U.*,
+		               (SELECT WM_CONCAT(R.ROLE_ID)
+		                  FROM T_USER_ROLE R
+		                 WHERE R.USER_ID = U.USER_ID) ROLE_ID,
+		               (SELECT A.ORG_ID COM_ID
+		                  FROM T_ORG A
+		                 WHERE A.NODE_TYPE IN ('1', '3', '4')
+		                   AND ROWNUM = 1
+		                 START WITH A.ORG_ID = U.ORG_ID
+		                CONNECT BY A.ORG_ID = PRIOR A.P_ID) COM_ID
+		          FROM (SELECT T.*, EMP.ORG_ID, EMP.EMP_NAME
+		                  FROM T_USER T, T_EMP_INFO EMP
+		                 WHERE LOGIN_ID = #{loginId}
+		                   AND ENABLE = '1'
+		                   AND T.EMP_ID = EMP.EMP_ID) U) TEM,
+		       T_ORG B
+		 WHERE TEM.COM_ID = B.ORG_ID
+	</select>            
+	
+	<!--  判断登录ID是否存在 -->
+	<select id="isLoginIdExists" parameterType="userVo" resultType="Integer">
+		 SELECT COUNT(1) COUNUM
+		  FROM T_USER
+		 WHERE LOGIN_ID = #{loginId}
+		   AND ENABLE = '1'
+		 <if test="userId != null">
+		 	<![CDATA[AND USER_ID <> #{userId}]]>
+		  </if>
+	</select>                 
+	
+	<!-- 插入用户信息 -->
+	<insert id="insert" parameterType="userVo">
+		INSERT INTO T_USER
+		  (USER_ID,
+		   LOGIN_ID,
+		   USER_NAME,
+		   USER_PASS,
+		   DEPT_ID,
+		   DEPT_NAME,
+		   ENABLE,
+		   EMP_ID,
+		   MODIFY_DATE)
+		VALUES
+		  (#{userId},
+		   #{loginId},
+		   #{userName},
+		   #{userPass},
+		   #{deptId, jdbcType=VARCHAR},
+		   #{deptName, jdbcType=VARCHAR},
+		   '1',
+		   #{empId},
+		   sysdate)
+	</insert>
+	
+	<!-- 更新用户信息 -->
+	<update id="update" parameterType="userVo">
+		UPDATE T_USER
+		<set>
+			LOGIN_ID= #{loginId},
+			USER_NAME= #{userName},
+			<if test="userPass != null">USER_PASS= #{userPass},</if>
+			DEPT_ID= #{deptId},
+			DEPT_NAME= #{deptName},
+			EMP_ID = #{empId},
+			MODIFY_DATE= sysdate
+		</set>
+		Where USER_ID= #{userId}
+	</update>
+	
+	<!-- 重置用户密码 -->
+	<update id="resetUserPass" parameterType="userVo">
+		UPDATE T_USER
+		<set>
+		USER_PASS= #{userPass}
+		</set>
+		WHERE USER_ID= #{userId}
+	</update>
+	
+	<!-- 通过用户ID删除用户信息 -->
+	<update id="delete" parameterType="String">
+		UPDATE T_USER
+		<set>
+			ENABLE = '0'
+		</set>
+		WHERE USER_ID=#{userId}
+	</update>
+
+	<!-- 插入用户审计日志 -->
+	<insert id="saveAuditLog"  parameterType="auditLogVo">
+		INSERT INTO T_AUDIT_LOG
+		  (ID,
+		   LOGIN_ID,
+		   USER_NAME,
+		   LOGIN_TIME,
+		   LOGINOUT_TME,
+		   LOGIN_STATE,
+		   ADD_MAC,
+		   ADD_IP,
+		   AUD_STATE)
+		VALUES
+		  (SYS_GUID(),
+		   #{loginId, jdbcType=VARCHAR},
+		   (SELECT USER_NAME FROM T_USER WHERE LOGIN_ID = #{loginId} AND ENABLE ='1'),
+		   SYSDATE,
+		   '',
+		   #{loginState, jdbcType=VARCHAR},
+		   #{addMac, jdbcType=VARCHAR},
+		   #{addIp, jdbcType=VARCHAR},
+		   #{audState, jdbcType=VARCHAR})
+	</insert>
+	
+	<!-- 更新用户审计日志 -->
+	<update id="updateAuditLog" parameterType="userVo">
+		UPDATE T_AUDIT_LOG
+		   SET LOGINOUT_TME = SYSDATE
+		 WHERE LOGIN_ID = #{loginId}
+		   AND LOGIN_TIME =
+		       (SELECT MAX(LOGIN_TIME) FROM T_AUDIT_LOG WHERE LOGIN_ID = #{loginId})
+	</update>
+	
+	<!-- 获取用户输入密码错误次数 -->
+	<select id="checkUserAud" parameterType="userVo" resultType="Integer">
+		 SELECT COUNT(1)
+		  FROM T_AUDIT_LOG
+		 WHERE LOGIN_STATE = '0'
+		   AND AUD_STATE = '0'
+		   AND LOGIN_ID = #{loginId}
+		   AND LOGIN_TIME > NVL((SELECT MAX(LOGIN_TIME)
+		                          FROM T_AUDIT_LOG
+		                         WHERE LOGIN_TIME > SYSDATE - #{lockTime}
+		                           AND LOGIN_ID = #{loginId}
+		                           AND LOGIN_STATE = '1'),
+		                        SYSDATE - #{lockTime})
+	</select> 
+	
+	<!-- 获取用户审计记录条数 -->
+	<select id="auditUserQueryTotal" parameterType="auditLogVo" resultType="Integer">
+		SELECT COUNT(1)
+		  FROM (SELECT A.ID,
+		               A.LOGIN_ID,
+		               A.USER_NAME,
+		               A.LOGIN_TIME,
+		               A.LOGINOUT_TME,
+		               (SELECT T2.VAL_NAME TEXT
+		                  FROM T_MAST_VAL T2
+		                 WHERE T2.TYPE_ID = (SELECT M.ID
+		                                       FROM T_MAST_TYPE M
+		                                      WHERE M.MASTER_CODE = 'LOGIN_STATE'
+		                                        AND M.USE_FLAG = '1')
+		                   AND T2.VAL_CODE = A.LOGIN_STATE) LOGIN_STATE,
+		               A.ADD_MAC,
+		               A.ADD_IP,
+		               (SELECT T2.VAL_NAME TEXT
+		                  FROM T_MAST_VAL T2
+		                 WHERE T2.TYPE_ID = (SELECT M.ID
+		                                       FROM T_MAST_TYPE M
+		                                      WHERE M.MASTER_CODE = 'AUD_STATE'
+		                                        AND M.USE_FLAG = '1')
+		                   AND T2.VAL_CODE = A.AUD_STATE) AUD_STATE
+		          FROM T_AUDIT_LOG A
+		         WHERE LOGIN_TIME =
+		               (SELECT MAX(T.LOGIN_TIME)
+		                  FROM T_AUDIT_LOG T
+		                 WHERE T.LOGIN_ID = A.LOGIN_ID
+		                   AND TO_CHAR(LOGIN_TIME, 'YYYYMMDD') = #{loginTime})
+						<if test="loginState != null ">
+						   AND UPPER(LOGIN_STATE) LIKE UPPER('%' || #{loginState} || '%') 
+						</if>
+						<if test="loginTime != null ">
+						   AND TO_CHAR(LOGIN_TIME, 'YYYYMMDD') = #{loginTime}
+						</if>
+		         ORDER BY LOGIN_TIME DESC)
+
+	</select> 
+	
+	<!-- 获取用户审计记录 -->
+	<select id="auditUserQuery" parameterType="auditLogVo" resultMap="auditLogVo">
+		SELECT *
+		  FROM (SELECT TMP_TB.*, ROWNUM ROW_ID
+		          FROM (SELECT A.ID,
+		                       A.LOGIN_ID,
+		                       A.USER_NAME,
+		                       TO_CHAR(A.LOGIN_TIME, 'YYYY-MM-DD HH24:MI:SS') AS LOGIN_TIME,
+		                       TO_CHAR(A.LOGINOUT_TME, 'YYYY-MM-DD HH24:MI:SS') AS LOGINOUT_TME,
+		                       (SELECT T2.VAL_NAME TEXT
+		                          FROM T_MAST_VAL T2
+		                         WHERE T2.TYPE_ID =
+		                               (SELECT M.ID
+		                                  FROM T_MAST_TYPE M
+		                                 WHERE M.MASTER_CODE = 'LOGIN_STATE'
+		                                   AND M.USE_FLAG = '1')
+		                           AND T2.VAL_CODE = A.LOGIN_STATE) LOGIN_STATE,
+		                       A.ADD_MAC,
+		                       A.ADD_IP,
+		                       (SELECT T2.VAL_NAME TEXT
+		                          FROM T_MAST_VAL T2
+		                         WHERE T2.TYPE_ID =
+		                               (SELECT M.ID
+		                                  FROM T_MAST_TYPE M
+		                                 WHERE M.MASTER_CODE = 'AUD_STATE'
+		                                   AND M.USE_FLAG = '1')
+		                           AND T2.VAL_CODE = A.AUD_STATE) AUD_STATE
+		                  FROM T_AUDIT_LOG A
+		                 WHERE LOGIN_TIME =
+		                       (SELECT MAX(T.LOGIN_TIME)
+		                          FROM T_AUDIT_LOG T
+		                         WHERE T.LOGIN_ID = A.LOGIN_ID
+		                           AND TO_CHAR(LOGIN_TIME, 'YYYYMMDD') = #{loginTime}) 
+						<if test="loginState != null ">
+		                   AND UPPER(LOGIN_STATE) LIKE
+		                       UPPER('%' || #{loginState} || '%')
+						</if>
+						<if test="loginTime != null ">
+		                   AND TO_CHAR(LOGIN_TIME, 'YYYYMMDD') = #{loginTime}
+						</if>
+		                 ORDER BY LOGIN_TIME DESC) TMP_TB
+		         WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+		 WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+	</select>
+	
+	<!-- 锁定用户解锁 -->
+	<update id="openLockUser" parameterType="userVo">
+		  UPDATE T_AUDIT_LOG
+            SET AUD_STATE = '1'
+          WHERE LOGIN_ID = #{loginId}
+            AND LOGIN_TIME > NVL((SELECT MAX(LOGIN_TIME)
+		                        FROM T_AUDIT_LOG
+		                       WHERE LOGIN_TIME > SYSDATE - #{lockTime}
+		                         AND LOGIN_ID = #{loginId}
+		                         AND LOGIN_STATE = '1'),SYSDATE - #{lockTime})
+	</update>
+	
+	<!-- 插入管理员操作日志 -->
+	<insert id="insertAdminOptLog"  parameterType="adminOptLogVo">
+		INSERT INTO T_ADMIN_OPTLOG
+                 (ID, ADMIN_USER, OPT_USER, OPT_TIME, OPT_TYPE)
+               VALUES
+                 ((SELECT SYS_GUID() FROM DUAL), #{adminUser},#{optUser}, SYSDATE, 'open')
+	</insert>
+	
+	<!-- 获取当前时间用户审计日志总条数 -->
+	<select id="auditUserDayQueryTotal" resultType="Integer" parameterType="auditLogVo">
+		 SELECT count(*) from(
+		   SELECT A.ID,
+		       A.LOGIN_ID,
+		       A.USER_NAME,
+		       A.LOGIN_TIME,
+		       A.LOGINOUT_TME,
+		       (SELECT T2.VAL_NAME TEXT
+		          FROM T_MAST_VAL T2
+		         WHERE T2.TYPE_ID = (SELECT M.ID
+		                               FROM T_MAST_TYPE M
+		                              WHERE M.MASTER_CODE = 'LOGIN_STATE'
+		                                AND M.USE_FLAG = '1')
+		           AND T2.VAL_CODE = A.LOGIN_STATE) LOGIN_STATE,
+		       A.ADD_MAC,
+		       A.ADD_IP,
+		       (SELECT T2.VAL_NAME TEXT
+		          FROM T_MAST_VAL T2
+		         WHERE T2.TYPE_ID = (SELECT M.ID
+		                               FROM T_MAST_TYPE M
+		                              WHERE M.MASTER_CODE = 'AUD_STATE'
+		                                AND M.USE_FLAG = '1')
+		           AND T2.VAL_CODE = A.AUD_STATE) AUD_STATE
+		  FROM T_AUDIT_LOG A
+		  WHERE 1=1 
+		  <if test="loginId != null ">
+			and LOGIN_Id = #{loginId}
+		  </if>
+		  <if test="loginState != null ">
+			and upper(LOGIN_STATE) like upper('%'||#{loginState}||'%')
+		  </if>
+		  <if test="loginTime != null ">
+			and TO_CHAR(LOGIN_TIME,'YYYYMMDD') = #{loginTime}
+		  </if>
+		ORDER BY LOGIN_TIME DESC )
+	</select> 
+	
+	<!-- 获取当前时间用户审计日志  -->
+	<select id="auditUserDayQuery" resultMap="auditLogVo" parameterType="auditLogVo">
+		 SELECT * FROM (SELECT TMP_TB.*,ROWNUM ROW_ID FROM (
+		   SELECT A.ID,
+		       A.LOGIN_ID,
+		       A.USER_NAME,
+		       TO_CHAR(A.LOGIN_TIME, 'yyyy-mm-dd hh24:mi:ss') AS LOGIN_TIME,
+		       TO_CHAR(A.LOGINOUT_TME, 'yyyy-mm-dd hh24:mi:ss') AS LOGINOUT_TME,
+		       (SELECT T2.VAL_NAME TEXT
+		          FROM T_MAST_VAL T2
+		         WHERE T2.TYPE_ID = (SELECT M.ID
+		                               FROM T_MAST_TYPE M
+		                              WHERE M.MASTER_CODE = 'LOGIN_STATE'
+		                                AND M.USE_FLAG = '1')
+		           AND T2.VAL_CODE = A.LOGIN_STATE) LOGIN_STATE,
+		       A.ADD_MAC,
+		       A.ADD_IP,
+		       (SELECT T2.VAL_NAME TEXT
+		          FROM T_MAST_VAL T2
+		         WHERE T2.TYPE_ID = (SELECT M.ID
+		                               FROM T_MAST_TYPE M
+		                              WHERE M.MASTER_CODE = 'AUD_STATE'
+		                                AND M.USE_FLAG = '1')
+		           AND T2.VAL_CODE = A.AUD_STATE) AUD_STATE
+		  FROM T_AUDIT_LOG A 
+		   WHERE 1=1
+		  <if test="loginId != null ">
+			AND LOGIN_Id = #{loginId}
+		  </if>
+		  <if test="loginState != null ">
+			AND UPPER(LOGIN_STATE) LIKE UPPER('%'||#{loginState}||'%')
+		  </if>
+		  <if test="loginTime != null ">
+			AND TO_CHAR(LOGIN_TIME,'YYYYMMDD') = #{loginTime}
+		  </if>
+		  ORDER BY LOGIN_TIME DESC ) TMP_TB WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+	     WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+	</select> 
+	
+	<!-- 根据用户获取权限菜单 -->
+	<select id="getMenuList" resultMap = "menuVo" parameterType="userVo">
+		SELECT LINK_URL, MENU_NAME
+		  FROM (SELECT LINK_URL, MENU_NAME
+		          FROM T_MENU
+		        MINUS
+		        SELECT LINK_URL, MENU_NAME
+		          FROM (SELECT DISTINCT A.LINK_URL, A.MENU_NAME
+		                  FROM T_MENU A
+		                 RIGHT JOIN (SELECT B.MENU_ID
+		                              FROM T_ROLE_MENU B
+		                             RIGHT JOIN T_USER_ROLE C ON (B.ROLE_ID =
+		                                                         C.ROLE_ID)
+		                             RIGHT JOIN T_USER D ON (C.USER_ID = D.USER_ID)
+		                             WHERE D.LOGIN_ID = #{loginId}) E ON A.MENU_ID =
+		                                                                 E.MENU_ID))
+		 WHERE LINK_URL IS NOT NULL
+	</select>
+	<!-- 批量新增Demo -->
+	<insert id="batchInsertDemo" parameterType="java.util.List">
+		 INSERT INTO T_AUDIT_LOG (
+			ID,
+			LOGIN_ID,
+			USER_NAME,
+			LOGIN_TIME,
+			LOGIN_STATE,
+			ADD_MAC,
+			ADD_IP
+		) 
+	    <foreach collection="list" item="item" index="index" separator="union all" >  
+	       ( SELECT
+	        #{item.id,jdbcType=VARCHAR},
+			#{item.loginId,jdbcType=VARCHAR},
+			#{item.userName,jdbcType=VARCHAR},
+			SYSDATE,
+			#{item.loginState,jdbcType=VARCHAR},
+			#{item.addMac,jdbcType=VARCHAR},
+			#{item.addIp,jdbcType=VARCHAR}
+			FROM DUAL)  
+	   </foreach>  
+	</insert>
+	
+	<!-- 批量更新Demo -->
+	<update id="bachUpdateDemo" parameterType="java.util.List">
+		
+	    <foreach collection="list" item="item" index="index" open="begin" separator=";" close=";end;">  
+		    UPDATE  T_AUDIT_LOG 
+		    	<set>
+				LOGIN_ID = #{item.loginId,jdbcType=VARCHAR},			
+				USER_NAME = #{item.userName,jdbcType=VARCHAR},
+				LOGIN_TIME = SYSDATE
+				</set>
+				WHERE ID = #{item.id,jdbcType=VARCHAR}
+	   </foreach>  
+	</update>
+	
+	<!-- 删除Demo数据 -->
+	<delete id="deleteBatchData"  parameterType="auditLogVo">
+		DELETE FROM T_AUDIT_LOG WHERE ADD_IP = #{addIp}
+	</delete>
+</mapper>

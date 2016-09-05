@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jysoft.cbb.dao.OrgMapper">
+	<!-- 组织机构 -->
+	<resultMap type="orgVo" id="orgVo">
+		<result property="org_id"     column="ORG_ID"  />
+		<result property="org_code"     column="ORG_CODE"  />
+		<result property="org_name"     column="ORG_NAME"  />
+		<result property="node_type"     column="NODE_TYPE"  />
+		<result property="p_id"     column="P_ID"  />
+	</resultMap>
+	
+	<!-- 组织机构树 -->
+	<resultMap type="orgTreeVo" id="orgTreeVo">
+		<result property="org_id"     column="ORG_ID"  />
+		<result property="org_name"     column="ORG_NAME"  />
+		<result property="p_id"     column="P_ID"  />
+		<result property="node_type"     column="NODE_TYPE" />
+		<result property="nodeid"    column="NODEID"/>
+	</resultMap>
+	
+	<!-- 员工信息 -->
+	<resultMap type="empInfoVo" id="empInfoVo">
+		<id property="emp_id"     column="EMP_ID"  />
+		<result property="emp_code"     column="EMP_CODE"  />
+		<result property="emp_name"     column="EMP_NAME"  />
+		<result property="emp_sex"     column="EMP_SEX"  />
+		<result property="emp_birth"     column="EMP_BIRTH"  />
+		<result property="org_id"     column="ORG_ID"  />
+		<result property="org_name"		column="ORG_NAME"/>
+		<result property="mob_tel"     column="MOB_TEL"  />
+		<result property="fix_tel"     column="FIX_TEL"  />
+		<result property="email"     column="EMAIL"  />
+	</resultMap>
+	
+	<!-- 查询所有组织机构信息  包含人员-->
+	<select id="getOrgTree" resultMap="orgTreeVo">
+		  SELECT *
+		    FROM (SELECT SORT_NUM,
+		                 ORG_ID ORG_ID,
+		                 P_ID P_ID,
+		                 ORG_NAME ORG_NAME,
+		                 'org' NODE_TYPE,
+		                 NODE_TYPE NODEID
+		            FROM T_ORG
+		          UNION ALL
+		          SELECT 0 SORT_NUM,
+		                 EMP_ID ORG_ID,
+		                 ORG_ID P_ID,
+		                 EMP_NAME ORG_NAME,
+		                 'emp' NODE_TYPE,
+		                 'emp' NODEID
+		            FROM T_EMP_INFO
+		           ORDER BY SORT_NUM)
+	</select>
+	
+	<!-- 查询所有组织机构信息 不包含人员 -->
+	<select id="getOrgTree2" resultMap="orgTreeVo">
+		SELECT ORG_ID ORG_ID, P_ID P_ID, ORG_NAME ORG_NAME, 'org' NODE_TYPE
+		  FROM T_ORG
+		 ORDER BY ORG_CODE
+	</select>
+	
+	<!-- 根据组织id获取单个组织的基本信息 -->
+	<select id="getOrgInfoByOrgId" parameterType="orgVo" resultMap="orgVo">
+		SELECT ORG_ID, ORG_CODE, ORG_NAME, NODE_TYPE, P_ID
+		  FROM T_ORG
+		 WHERE ORG_ID = #{org_id}
+		 ORDER BY ORG_CODE
+	</select>
+		
+	<!-- 新增组织机构信息 -->
+	<insert id="addNewOrgInfo" parameterType="orgVo">
+		INSERT INTO T_ORG
+		  (ORG_ID, ORG_CODE, ORG_NAME, P_ID, NODE_TYPE)
+		VALUES
+		  (#{org_code}, #{org_code}, #{org_name}, #{p_id}, #{node_type})
+	</insert>
+	
+	<!-- 更新组织信息 -->	
+	<update id="updateOrgInfo" parameterType="orgVo" >
+		UPDATE T_ORG
+		<set>            
+			ORG_NAME  = #{org_name}
+			<if test="org_code != null">,ORG_CODE=#{org_code}</if> 
+			<if test="p_id != null">,P_ID=#{p_id}</if> 
+			<if test="node_type != null">,NODE_TYPE=#{node_type}</if> 
+		</set>
+		WHERE ORG_ID = #{org_id}
+	</update>
+	
+	<!-- 删除组织 -->
+	<delete id="deleteOrgInfo" parameterType="orgVo">
+		DELETE FROM T_ORG WHERE ORG_ID = #{org_id}
+	</delete>
+	
+	<!-- 获取所有员工信息 -->	
+	<select id="getAllEmpInfo" resultMap="empInfoVo">
+		SELECT EMP_ID,
+		       EMP_CODE,
+		       EMP_NAME,
+		       EMP_SEX,
+		       TO_DATE(EMP_BIRTH, 'YYYYMMDD') EMP_BIRTH,
+		       ORG_ID,
+		       MOB_TEL,
+		       FIX_TEL,
+		       EMAIL
+		 FROM T_EMP_INFO
+	</select>
+	<!-- 根据id查询单个员工基本信息 -->	
+	<select id="getEmpInfoByOrgId" parameterType="empInfoVo" resultMap="empInfoVo">
+	  SELECT EMP_ID,
+	         EMP_CODE,
+	         EMP_NAME,
+	         EMP_SEX,
+	         TO_CHAR(EMP_BIRTH,'YYYYMMDD')EMP_BIRTH,
+	         ORG_ID,
+	         MOB_TEL,        
+	         EMAIL
+	    FROM T_EMP_INFO
+	    WHERE 1=1
+	  <if test="org_id != null and org_id != '' ">
+		<![CDATA[AND EMP_ID = #{emp_id}]]>
+	  </if>
+	</select>
+	
+	<!-- 增加新员工 -->	
+	<insert id="addNewEmpInfo" parameterType="empInfoVo">
+		INSERT INTO T_EMP_INFO
+		  (EMP_ID,
+		   ORG_ID,
+		   <if test="emp_name != null and emp_name != '' ">EMP_NAME,</if>
+		   <if test="emp_sex != null and emp_sex != '' ">EMP_SEX,</if>
+		   <if test="emp_birth != null and emp_birth != '' ">EMP_BIRTH,</if>
+		   <if test="mob_tel != null and mob_tel != '' ">MOB_TEL,</if>
+		   <if test="fix_tel != null and fix_tel != '' ">FIX_TEL,</if>
+		   <if test="email != null and email != '' ">EMAIL,</if>
+		   <if test="emp_code != null and emp_code != '' ">EMP_CODE</if>)
+		VALUES
+		  ((SELECT SYS_GUID() FROM DUAL),
+		   #{org_id},
+		   <if test="emp_name != null and emp_name != '' ">#{emp_name},</if>
+		   <if test="emp_sex != null and emp_sex != '' ">#{emp_sex},</if>
+		   <if test="emp_birth != null and emp_birth != '' ">to_date(#{emp_birth},'yyyymmdd'),</if>
+		   <if test="mob_tel != null and mob_tel != '' ">#{mob_tel},</if>
+		   <if test="fix_tel != null and fix_tel != '' ">#{fix_tel},</if>
+		   <if test="email != null and email != '' ">#{email},</if>
+		   <if test="emp_code != null and emp_code != '' ">#{emp_code}</if>)
+	</insert>
+	
+	<!-- 更新员工基本信息 -->	
+	<update id="updateEmpInfo" parameterType="empInfoVo">
+		UPDATE T_EMP_INFO
+		<set>            
+			<if test="emp_name != null and emp_name != '' ">EMP_NAME  = #{emp_name},</if>		
+			<if test="emp_code != null and emp_code != '' ">EMP_CODE=#{emp_code},</if> 		
+			<if test="emp_sex != null and emp_sex != '' ">EMP_SEX=#{emp_sex},</if> 		
+			<if test="emp_birth != null and emp_birth != '' ">EMP_BIRTH=to_date(#{emp_birth},'yyyymmdd'),</if> 		
+			<if test="org_id != null and org_id != '' ">ORG_ID=#{org_id},</if> 		
+			<if test="mob_tel != null  ">MOB_TEL=#{mob_tel},</if> 		
+			<if test="fix_tel != null  ">FIX_TEL=#{fix_tel},</if> 		
+			<if test="email != null  ">EMAIL=#{email}</if> 
+		</set>
+		where EMP_ID = #{emp_id}
+	</update>
+	
+	<!-- 删除员工 -->	
+	<delete id="deleteEmpInfo" parameterType="java.lang.String">
+		DELETE FROM T_EMP_INFO WHERE EMP_ID = #{emp_id}
+	</delete>
+	
+	<!-- 查询该员工下是否有用户账号存在 -->	
+	<select id="findRelationWithUser" parameterType="empInfoVo" resultMap="empInfoVo">
+		SELECT * FROM T_USER WHERE EMP_ID=#{emp_id} AND　ENABLE = '1'
+	</select>
+		
+	<select id="findEmpInfoByEmpId" parameterType="empInfoVo" resultMap="empInfoVo">
+		SELECT EMP_ID,
+		       EMP_CODE,
+		       EMP_NAME,
+	         EMP_SEX,
+	         TO_CHAR(EMP_BIRTH,'YYYYMMDD')EMP_BIRTH,
+	         T_EMP_INFO.ORG_ID,
+	         MOB_TEL,
+	         FIX_TEL,
+	         ORG_NAME,
+	         EMAIL
+	    FROM T_EMP_INFO,T_ORG
+	    WHERE T_ORG.ORG_ID = T_EMP_INFO.ORG_ID
+	    AND EMP_ID = #{emp_id}
+	</select>
+	
+	<!-- 获取组织下拉框数据 -->	
+	<select id="getOrgCodeList" resultMap="orgVo">
+		SELECT ORG_ID, ORG_NAME, P_ID, NODE_TYPE FROM T_ORG ORDER BY ORG_CODE
+	</select>
+	
+	<!-- 获取远东编码清单 -->	
+	<select id="getEmpInfoForCodeList" resultMap="empInfoVo">
+		SELECT EMP_ID, EMP_NAME, T1.ORG_ID, ORG_NAME
+		  FROM T_EMP_INFO T1, T_ORG T2
+		 WHERE T1.ORG_ID = T2.ORG_ID	
+	</select>
+	
+	<!-- 根据员工ID获得组织机构信息 -->	
+	<select id="getOrgInfoByEmpId" parameterType="empInfoVo" resultMap="empInfoVo">
+	  SELECT T1.ORG_ID, ORG_NAME
+	    FROM T_EMP_INFO T1, T_ORG T2
+	   WHERE T1.ORG_ID = T2.ORG_ID
+	     AND T1.EMP_ID = #{emp_id}
+	</select>
+	
+	<!-- 获取所有部门名称 -->	
+	<select id="getOrgNameList"  resultMap="orgVo">
+		SELECT * FROM T_ORG WHERE P_ID = 'jx01' ORDER BY ORG_CODE
+	</select>
+	<!-- 根据父ID查询子集 -->
+	<select id="getChildrenById"  resultMap="orgVo">
+		SELECT * FROM T_ORG WHERE P_ID = #{pId} ORDER BY ORG_CODE
+	</select>
+	
+	<!-- 获得业务系统编辑中需要的所属业务部门信息  -->
+	<select id="getBizOrgInfos" resultMap="orgVo">
+		SELECT ORG_ID, ORG_NAME, P_ID, NODE_TYPE
+		  FROM T_ORG
+		 WHERE NODE_TYPE = '2'
+		    OR NODE_TYPE = '1'
+		 ORDER BY ORG_CODE
+	</select>
+	
+	<!-- 查询组织编码是否重复 -->	
+	<select id="checkOrgCodeUnique" resultMap="orgVo" parameterType="orgVo">
+		SELECT ORG_CODE FROM T_ORG T WHERE UPPER(org_code) = UPPER(#{org_code})
+	</select>
+</mapper>      

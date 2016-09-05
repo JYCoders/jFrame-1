@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="GBK"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jysoft.cbb.dao.CommonMapper">
+	<resultMap type="comBoxSelectVo" id="comBoxSelectVo">
+		<id property="id" column="ID" />
+		<id property="text" column="TEXT" />
+		<id property="type" column="TYPE" />	
+	</resultMap>
+	
+	<!-- 根据类型获取下拉框信息 -->
+	<select id="getMiddleWareComList"  parameterType="comBoxSelectVo" resultMap="comBoxSelectVo">
+		SELECT T2.VAL_CODE ID, T2.VAL_NAME TEXT
+		  FROM T_MAST_TYPE T1, T_MAST_VAL T2
+		 WHERE T1.ID = T2.TYPE_ID
+		   AND T1.USE_FLAG = '1'
+		   AND T2.USE_FLAG = '1'
+		   AND T1.MASTER_CODE = #{type}
+		 ORDER BY T2.SORT_NUM
+	</select>
+</mapper>

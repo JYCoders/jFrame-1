@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jysoft.cbb.dao.QuartzLogDetailMapper">
+	<resultMap type="quartzLogDetailVo" id="quartzLogDetailVo">
+		 <result property="logId"     column="LOG_ID" />
+		 <result property="taskInstid"   column="TASK_INSTID"      />
+		 <result property="excStats"   column="EXC_STAT2" />
+		 <result property="logType"  column="LOG_TYPE"         />
+		 <result property="logInfo"   column="LOG_INFO"      />
+		 <result property="recName1"  column="REC_NAME1"    />
+		 <result property="recValue1"  column="REC_VALU1"    />
+		 <result property="recName2"  column="REC_NAME2"    />
+		 <result property="recValue2"  column="REC_VALU2"    />
+		 <result property="recName3"  column="REC_NAME3"    />
+		 <result property="recValue3"  column="REC_VALU3"    />
+		 <result property="recName4"  column="REC_NAME4"    />
+		 <result property="recValue4"  column="REC_VALU4"    />
+		 <result property="logDate"  column="LOG_DATE"    />
+	</resultMap>
+
+	<!-- 根据任务ID获取日志信息 -->
+	<select id="getTaskLogDetailById" parameterType="quartzLogDetailVo" resultMap="quartzLogDetailVo">
+		SELECT * FROM (SELECT TMP_TB.*,ROWNUM ROW_ID FROM (
+			SELECT LOG_ID,
+	            TASK_INSTID,
+	            EXC_STAT2,
+	            (select val_name
+	          from t_mast_val
+	         where type_id in
+	               (select id from t_mast_type where master_code = 'LOG_TYPE')
+	           and val_code = log_type) LOG_TYPE,
+		       LOG_INFO,
+		       LOG_DATE,
+		       REC_NAME1,
+		       REC_VALU1,
+		       REC_NAME2,
+		       REC_VALU2,
+		       REC_NAME3,
+		       REC_VALU3,
+		       REC_NAME4,
+		       REC_VALU4
+		       FROM T_QUARTZ_LOG_DETAIL T
+			WHERE 
+				TASK_INSTID = #{taskInstid}
+				<if  test="logType != null and logType!='' ">
+				AND LOG_TYPE = #{logType}
+				</if>
+				  ORDER BY T.LOG_DATE
+	   <!-- order by log_date -->
+	    )  TMP_TB WHERE ROWNUM <![CDATA[<=]]> #{page} * #{rows} ) 
+	     WHERE ROW_ID <![CDATA[>]]> (#{page} - 1) * #{rows}
+	</select>
+	
+	<!-- 根据任务ID获取日志信息总数 -->
+	<select id="getTaskLogDetailByIdTotal" parameterType="quartzLogDetailVo" resultType="String">
+		select count(*) from(
+			SELECT LOG_ID,
+	            TASK_INSTID,
+	            EXC_STAT2,
+	            (select val_name
+	          from t_mast_val
+	         where type_id in
+	               (select id from t_mast_type where master_code = 'LOG_TYPE')
+	           and val_code = log_type) LOG_TYPE,
+		       LOG_INFO,
+		       LOG_DATE,
+		       REC_NAME1,
+		       REC_VALU1,
+		       REC_NAME2,
+		       REC_VALU2,
+		       REC_NAME3,
+		       REC_VALU3,
+		       REC_NAME4,
+		       REC_VALU4
+		       FROM T_QUARTZ_LOG_DETAIL
+			WHERE 
+				TASK_INSTID = #{taskInstid}
+				<if  test="logType != null and logType!='' ">
+				AND LOG_TYPE = #{logType}
+				</if>
+		   <!-- order by log_date -->
+		   )
+	</select>
+	
+	<!-- 插入日志信息 -->
+	<insert id="insertLog" parameterType="quartzLogDetailVo">
+		INSERT INTO 
+			T_QUARTZ_LOG_DETAIL(LOG_ID, TASK_INSTID, EXC_STAT2, LOG_TYPE, LOG_INFO,  REC_NAME1, REC_VALU1, REC_NAME2, REC_VALU2, REC_NAME3, REC_VALU3,
+			REC_NAME4, REC_VALU4, LOG_DATE)
+		VALUES
+			(<if test="logId != null">#{logId},</if>
+			<if test="logId == null">sys_guid(),</if>
+			#{taskInstid}, #{excStats}, #{logType}, #{logInfo}, 
+				<if test="recName1 != null">#{recName1},</if>
+				<if test="recName1 == null">null,</if>
+				<if test="recValue1 != null">#{recValue1},</if> 
+				<if test="recValue1 == null">null,</if> 
+				<if test="recName2 != null">#{recName2},</if> 
+				<if test="recName2 == null">null,</if> 
+				<if test="recValue2 != null">#{recValue2},</if> 
+				<if test="recValue2 == null">null,</if> 
+				<if test="recName3 != null">#{recName3},</if> 
+				<if test="recName3 == null">null,</if> 
+				<if test="recValue3 != null">#{recValue3},</if> 
+				<if test="recValue3 == null">null,</if> 
+				<if test="recName4 != null">#{recName4},</if> 
+				<if test="recName4 == null">null,</if> 
+				<if test="recValue4 != null">#{recValue4},</if> 
+				<if test="recValue4 == null">null,</if> 
+			  #{logDate})	
+	</insert>
+</mapper>

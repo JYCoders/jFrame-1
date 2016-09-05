@@ -1,0 +1,44 @@
+
+body {
+	background-image: url(../images/login_bg.jpg);
+	background-repeat: repeat-x;
+	background-position: center top;
+	background-color: #9DD3FF;
+}
+label{display:inline;height:37px;position:relative;}
+span{
+	position:absolute;float:left;line-height:40px;left:36px;color:#BCBCBC;cursor:text;
+	}
+.login_bg {
+	background-repeat: no-repeat;
+	background-position: center top;
+	height: 569px;
+	width: 1002px;
+	background-image: url(../images/login.jpg);
+}
+.user_bg {
+	background-image: url(../images/username_bg.jpg);
+	background-repeat: no-repeat;
+	background-position: center top;
+	text-align: left;
+	height: 37px;
+	width: 225px;
+	/**width: 188px;**/
+	border: 1px solid #5ea2ff;
+	font-family: "宋体";
+	font-size: 18px;
+	padding-top: 8px;
+	padding-left:36px;
+}
+.password_bg {
+	background-image: url(../images/password_bg.jpg);
+	background-repeat: no-repeat;
+	background-position: center top;
+	height: 37px;
+	width: 225px;
+	border: 1px solid #5ea2ff;
+	font-family: "宋体";
+	font-size: 18px;
+	padding-top: 8px;
+	padding-left:36px;
+}
